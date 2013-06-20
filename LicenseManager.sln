@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LicenseManager", "LicenseManager\LicenseManager.csproj", "{7F9D788D-2D06-4EF7-B816-7007431BB6B9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LicenseManagerTests", "LicenseManagerTests\LicenseManagerTests.csproj", "{C261F22C-B777-428C-B25F-E3EC7B34D7C3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LicenseManagerLibrary", "LicenseManagerLibrary\LicenseManagerLibrary.csproj", "{6540A1B7-CD2E-4931-8ACB-99F117AE1DE5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7F9D788D-2D06-4EF7-B816-7007431BB6B9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F9D788D-2D06-4EF7-B816-7007431BB6B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F9D788D-2D06-4EF7-B816-7007431BB6B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F9D788D-2D06-4EF7-B816-7007431BB6B9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C261F22C-B777-428C-B25F-E3EC7B34D7C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C261F22C-B777-428C-B25F-E3EC7B34D7C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C261F22C-B777-428C-B25F-E3EC7B34D7C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C261F22C-B777-428C-B25F-E3EC7B34D7C3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6540A1B7-CD2E-4931-8ACB-99F117AE1DE5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6540A1B7-CD2E-4931-8ACB-99F117AE1DE5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6540A1B7-CD2E-4931-8ACB-99F117AE1DE5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6540A1B7-CD2E-4931-8ACB-99F117AE1DE5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

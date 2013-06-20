@@ -1,0 +1,10 @@
+*.pdb
+*.suo
+*ReSharper*
+*resharper*
+*.dll
+*.exe
+bin
+obj
+*/bin
+*/obj

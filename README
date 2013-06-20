@@ -1,0 +1,7 @@
+Requirements to build LicenseManager:
+- VisualStudio 2012
+- .NET 4
+
+To start using licenses, instantiate a license manager and call LoadLicense on the path. This will give you a license file to use, 
+call IsValid with the name of the attribute to see if it's valid. At this stage, only JSON licenses are supported, but I'm going to implement
+a signed file next before I get to work on the manager UI
