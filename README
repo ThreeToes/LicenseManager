@@ -1,5 +1,5 @@
 Requirements to build LicenseManager:
-- VisualStudio 2012
+- VisualStudio 2012 or Visual Studio 2010 (Xamarin may work, haven't tested it though)
 - .NET 4
 
 To start using licenses, instantiate a license manager and call LoadLicense on the path. This will give you a license file to use, 
