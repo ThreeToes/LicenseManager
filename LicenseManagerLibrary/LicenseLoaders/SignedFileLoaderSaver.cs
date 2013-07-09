@@ -1,20 +1,25 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.IO.Packaging;
 using System.Linq;
+using System.Security;
 using System.Security.Cryptography;
 using System.Text;
+using LicenseManagerLibrary.Exceptions;
 using LicenseManagerLibrary.Licenses;
 
 namespace LicenseManagerLibrary.LicenseLoaders
 {
 	[Export(typeof(ILicenseLoaderSaver))]
-	[Export(typeof(ISigningLoaderSaver))]
 	class SignedFileLoaderSaver : ISigningLoaderSaver
 	{
-		[Import(typeof(ILicenseFactory))]
+	    private const string SignatureString = @"\signature.txt";
+	    private const string LicenseString = @"\license.txt";
+
+	    [Import(typeof(ILicenseFactory))]
 		public ILicenseFactory LicenseFactory { get; set; }
 
 		private JsonLicenseLoaderSaver _inner;
@@ -26,74 +31,192 @@ namespace LicenseManagerLibrary.LicenseLoaders
 
 		public string Extension
 		{
-			get { return ".lic"; }
+            //Because this uses file packers
+			get { return "pck"; }
 		}
 
 		public ILicense LoadLicense(string path)
 		{
-			throw new NotImplementedException();
+            using (var pack = Package.Open(path))
+            {
+
+                //Get the signature
+                var signature = pack.GetPart(PackUriHelper.CreatePartUri(new Uri(SignatureString, UriKind.Relative)));
+                string sigString;
+                using (var stream = new StreamReader(signature.GetStream()))
+                {
+                    sigString = stream.ReadToEnd();
+                }
+
+                //Get the license
+                var license = pack.GetPart(PackUriHelper.CreatePartUri(new Uri(LicenseString, UriKind.Relative)));
+                string licenseJson;
+                using (var stream = new StreamReader(license.GetStream()))
+                {
+                    licenseJson = stream.ReadToEnd();
+                }
+                var enc = new ASCIIEncoding();
+                var md5 = enc.GetString(GetMd5Hash(licenseJson));
+                if (md5 != sigString)
+                {
+                    throw new InvalidLicenseException("License hash doesn't match!");
+                }
+
+                return _inner.LoadLicenseFromJson(licenseJson);
+            }
 		}
+
+        private bool VerifySignature(byte[] signature, byte[] hash, string xmlKey)
+        {
+            var rsa = new RSACryptoServiceProvider();
+            rsa.FromXmlString(xmlKey);
+            var rsaDeformatter = new RSAPKCS1SignatureDeformatter(rsa);
+            rsaDeformatter.SetHashAlgorithm("MD5");
+            return (rsaDeformatter.VerifySignature(hash, signature));
+        }
 
 		public void SaveLicense(ILicense license, string path)
 		{
-			var tmpDir = Path.GetTempFileName();
-			if(File.Exists(tmpDir)) {
-				File.Delete(tmpDir);
-			}
-			Directory.CreateDirectory(tmpDir);
-			var jsonLicensePath = Path.Combine(tmpDir, "license.json");
-			_inner.SaveLicense(license,jsonLicensePath);
-			var signaturePath = Path.Combine(tmpDir, "signature");
-			var md5Hash = GetMd5Hash(jsonLicensePath);
-			
-			var pack = Package.Open(path);
-			var licensePart = pack.CreatePart(new Uri("license"), "application/json", CompressionOption.Maximum);
-			using(var stream = new StreamWriter(licensePart.GetStream()))
-			{
-				
-			}
-			pack.CreatePart(new Uri("signature"), "application/json", CompressionOption.Maximum);
-			pack.Flush();
+            if(File.Exists(path)) {
+                File.Delete(path);
+            }
+            using (var pack = Package.Open(path))
+            {
+                var licenseString = _inner.GetJson(license);
+                var md5 = GetMd5Hash(licenseString);
+
+                var licensePart = pack.CreatePart(
+                    PackUriHelper.CreatePartUri(new Uri(LicenseString, UriKind.Relative)),
+                    System.Net.Mime.MediaTypeNames.Text.Plain, CompressionOption.Maximum);
+                var signaturePart =
+                    pack.CreatePart(PackUriHelper.CreatePartUri(new Uri(SignatureString, UriKind.Relative)),
+                                    System.Net.Mime.MediaTypeNames.Text.Plain, CompressionOption.Maximum);
+
+                using (var stream = new StreamWriter(licensePart.GetStream()))
+                {
+                    stream.Write(licenseString);
+                }
+
+                using (var stream = new StreamWriter(signaturePart.GetStream()))
+                {
+                    var enc = new ASCIIEncoding();
+                    stream.Write(enc.GetString(md5));
+                }
+
+                pack.Flush();
+            }
 		}
 
-		private string GetMd5Hash(string jsonLicensePath)
+		private byte[] GetMd5Hash(string json)
 		{
 			byte[] md5Hash;
-			using (var md5 = MD5.Create())
-			{
-				using (var stream = File.OpenRead(jsonLicensePath))
-				{
-					md5Hash = md5.ComputeHash(stream);
-				}
+		    var enc = new ASCIIEncoding();
+			using (var md5 = MD5.Create()) {
+				md5Hash = md5.ComputeHash(enc.GetBytes(json));
 			}
-			var result = new StringBuilder(md5Hash.Length * 2);
-
-			for (int i = 0; i < md5Hash.Length; i++)
-				result.Append(md5Hash[i].ToString("x2"));
-
-			return result.ToString();
+			return md5Hash;
 		}
 
-		private static string RsaEncrypt(string privateKey, string dataToEncrypt)
+
+        public void SaveSignedLicense(string signingKey, ILicense license, string path)
 		{
-			string rsaPrivate = privateKey;
-			var csp = new CspParameters();
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+            using(var pack = Package.Open(path))
+            {
+                var licenseString = _inner.GetJson(license);
+                var md5 = GetSignature(GetMd5Hash(licenseString), signingKey);
 
-			var provider = new RSACryptoServiceProvider(csp);
+                var licensePart = pack.CreatePart(
+                    PackUriHelper.CreatePartUri(new Uri(LicenseString, UriKind.Relative)),
+                    System.Net.Mime.MediaTypeNames.Text.Plain, CompressionOption.Maximum);
+                var signaturePart = pack.CreatePart(
+                    PackUriHelper.CreatePartUri(new Uri(SignatureString, UriKind.Relative)),
+                    System.Net.Mime.MediaTypeNames.Text.Plain, CompressionOption.Maximum);
 
-			provider.FromXmlString(rsaPrivate);
+                using (var stream = new StreamWriter(licensePart.GetStream()))
+                {
+                    stream.Write(licenseString);
+                }
 
-			var enc = new ASCIIEncoding();
-			int numOfChars = enc.GetByteCount(dataToEncrypt);
-			byte[] tempArray = enc.GetBytes(dataToEncrypt);
-			byte[] result = provider.Encrypt(tempArray, true);
-			string resultString = Convert.ToBase64String(result);
-			return resultString;
+                var enc = new ASCIIEncoding();
+                using (var stream = new StreamWriter(signaturePart.GetStream()))
+                {
+                    stream.Write(enc.GetString(md5));
+                }
+            }
 		}
 
-		public void SaveSignedLicense(string signingKey, ILicense license, string path)
-		{
-			throw new NotImplementedException();
-		}
+	    private byte[] GetSignature(byte[] hashValue, string signingKey)
+	    {
+            //The value to hold the signed value.
+
+	        //Generate a public/private key pair.
+            var rsa = new RSACryptoServiceProvider();
+            rsa.FromXmlString(signingKey);
+
+            //Create an RSAPKCS1SignatureFormatter object and pass it the 
+            //RSACryptoServiceProvider to transfer the private key.
+            var rsaFormatter = new RSAPKCS1SignatureFormatter(rsa);
+
+            //Set the hash algorithm to SHA1.
+            rsaFormatter.SetHashAlgorithm("MD5");
+
+            //Create a signature for HashValue and assign it to 
+            //SignedHashValue.
+	        return rsaFormatter.CreateSignature(hashValue);
+	    }
+
+	    public ILicense LoadSignedLicense(string publicKey, string path)
+	    {
+            using (var pack = Package.Open(path))
+            {
+
+                //Get the signature
+                var signature = pack.GetPart(PackUriHelper.CreatePartUri(new Uri(SignatureString, UriKind.Relative)));
+                byte[] sigString;
+                using (var stream = new StreamReader(signature.GetStream()))
+                {
+                    var enc = new ASCIIEncoding();
+                    sigString = enc.GetBytes(stream.ReadToEnd());
+                }
+
+                //Get the license
+                var license = pack.GetPart(PackUriHelper.CreatePartUri(new Uri(LicenseString, UriKind.Relative)));
+                string licenseJson;
+                using (var stream = new StreamReader(license.GetStream()))
+                {
+                    licenseJson = stream.ReadToEnd();
+                }
+
+                var md5 = GetMd5Hash(licenseJson);
+                if (VerifySignature(sigString,md5, publicKey))
+                {
+                    throw new InvalidLicenseException("License hash doesn't match!");
+                }
+
+                return _inner.LoadLicenseFromJson(licenseJson);
+            }
+	    }
+
+	    public Tuple<string, string> GenerateKeyPair()
+	    {
+            // Create a new key pair on target CSP
+            var cspParams = new CspParameters();
+            cspParams.ProviderType = 1; // PROV_RSA_FULL 
+            //cspParams.ProviderName; // CSP name
+            cspParams.Flags = CspProviderFlags.UseArchivableKey;
+            cspParams.KeyNumber = (int)KeyNumber.Exchange;
+            var rsaProvider = new RSACryptoServiceProvider(cspParams);
+
+            // Export public key
+            var publicKey = rsaProvider.ToXmlString(false);
+
+            // Export private/public key pair 
+            var privateKey = rsaProvider.ToXmlString(true);
+            return new Tuple<string, string>(publicKey, privateKey);
+	    }
 	}
 }

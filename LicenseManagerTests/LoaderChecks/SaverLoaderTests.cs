@@ -31,7 +31,8 @@ namespace LicenseManagerTests.LoaderChecks
             var license = GetLicense();
             var manager = GetLicenseManager();
             var extensions = manager.SupportedExtensions;
-            foreach (var extension in extensions) {
+            foreach (var extension in extensions)
+            {
                 var temp = GetTempLicenseFile(extension);
                 manager.SaveLicense(license, temp);
                 var loaded = manager.LoadLicense(temp);
@@ -42,7 +43,31 @@ namespace LicenseManagerTests.LoaderChecks
                 finally
                 {
                     File.Delete(temp);
-                }   
+                }
+            }
+        }
+
+        [Test]
+        public void SaveAndLoadSigned()
+        {
+            var license = GetLicense();
+            var manager = GetLicenseManager();
+            var signedLoaders = manager.SignedLoaders;
+            foreach (var loader in signedLoaders)
+            {
+                var extension = loader.Extension;
+                var keys = loader.GenerateKeyPair();
+                var temp = GetTempLicenseFile(extension);
+                manager.SaveSignedLicense(keys.Item2,license, temp);
+                var loaded = manager.LoadSignedLicense(keys.Item2,temp);
+                try
+                {
+                    LicenseTestTools.CheckLicense(license, loaded);
+                }
+                finally
+                {
+                    File.Delete(temp);
+                }
             }
         }
 

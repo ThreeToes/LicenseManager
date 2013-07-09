@@ -6,9 +6,10 @@ using LicenseManagerLibrary.Licenses;
 
 namespace LicenseManagerLibrary.LicenseLoaders
 {
-	interface ISigningLoaderSaver : ILicenseLoaderSaver
+    public interface ISigningLoaderSaver : ILicenseLoaderSaver
 	{
 		void SaveSignedLicense(string signingKey, ILicense license, string path);
-		void LoadSignedLicense(string publicKey, string path);
+		ILicense LoadSignedLicense(string publicKey, string path);
+	    Tuple<string, string> GenerateKeyPair();
 	}
 }

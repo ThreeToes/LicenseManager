@@ -46,6 +46,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Exceptions\InvalidLicenseException.cs" />
     <Compile Include="Exceptions\UnsupportedFileTypeException.cs" />
     <Compile Include="LicenseLoaders\ILicenseFactory.cs" />
     <Compile Include="LicenseLoaders\ILicenseLoaderSaver.cs" />
